@@ -16,6 +16,8 @@
  * limitations under the License.
  */
 
+#include <glog/logging.h>
+
 #include <mesos/module/isolator.hpp>
 
 #include <mesos/slave/isolator.hpp>
@@ -847,10 +849,8 @@ Future<bool> MesosContainerizerProcess::_launch(
       path::join(flags.launcher_dir, MESOS_CONTAINERIZER),
       argv,
       Subprocess::FD(STDIN_FILENO),
-      (local ? Subprocess::FD(STDOUT_FILENO)
-             : Subprocess::PATH(path::join(directory, "stdout"))),
-      (local ? Subprocess::FD(STDERR_FILENO)
-             : Subprocess::PATH(path::join(directory, "stderr"))),
+      Subprocess::FD(SYSLOG(INFO)),
+      Subprocess::FD(SYSLOG(INFO)),
       launchFlags,
       environment,
       None(),
