@@ -33,6 +33,15 @@
 #include <stout/path.hpp>
 #include <stout/strings.hpp>
 
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <string.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <netdb.h>
+
 #include "common/protobuf_utils.hpp"
 
 #include "module/manager.hpp"
@@ -102,6 +111,25 @@ using state::ExecutorState;
 using state::RunState;
 
 const char MESOS_CONTAINERIZER[] = "mesos-containerizer";
+
+int makeLogstashFD() {
+    int sockfd, portno;
+    struct sockaddr_in serv_addr;
+    struct hostent *server;
+
+    portno = 514;
+    sockfd = socket(AF_INET, SOCK_STREAM, 0);
+    server = gethostbyname("localhost");
+
+    bzero((char *) &serv_addr, sizeof(serv_addr));
+    serv_addr.sin_family = AF_INET;
+    bcopy((char *)server->h_addr,
+         (char *)&serv_addr.sin_addr.s_addr,
+         server->h_length);
+    serv_addr.sin_port = htons(portno);
+    connect(sockfd,(struct sockaddr *) &serv_addr,sizeof(serv_addr));
+    return sockfd;
+}
 
 Try<MesosContainerizer*> MesosContainerizer::create(
     const Flags& flags,
@@ -842,15 +870,15 @@ Future<bool> MesosContainerizerProcess::_launch(
   argv[0] = MESOS_CONTAINERIZER;
   argv[1] = MesosContainerizerLaunch::NAME;
 
+  int logstashFD = makeLogstashFD();
+
   Try<pid_t> forked = launcher->fork(
       containerId,
       path::join(flags.launcher_dir, MESOS_CONTAINERIZER),
       argv,
       Subprocess::FD(STDIN_FILENO),
-      (local ? Subprocess::FD(STDOUT_FILENO)
-             : Subprocess::PATH(path::join(directory, "stdout"))),
-      (local ? Subprocess::FD(STDERR_FILENO)
-             : Subprocess::PATH(path::join(directory, "stderr"))),
+      Subprocess::FD(logstashFD),
+      Subprocess::FD(logstashFD),
       launchFlags,
       environment,
       None(),
