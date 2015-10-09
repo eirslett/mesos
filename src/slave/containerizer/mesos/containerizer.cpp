@@ -113,16 +113,12 @@ using state::RunState;
 const char MESOS_CONTAINERIZER[] = "mesos-containerizer";
 
 int makeLogstashFD() {
-    int sockfd, portno, n;
+    int sockfd, portno;
     struct sockaddr_in serv_addr;
     struct hostent *server;
 
-    char buffer[256];
-
     portno = 514;
     sockfd = socket(AF_INET, SOCK_STREAM, 0);
-    if (sockfd < 0)
-        error("ERROR opening socket");
     server = gethostbyname("localhost");
 
     bzero((char *) &serv_addr, sizeof(serv_addr));
@@ -131,8 +127,6 @@ int makeLogstashFD() {
          (char *)&serv_addr.sin_addr.s_addr,
          server->h_length);
     serv_addr.sin_port = htons(portno);
-    if (connect(sockfd,(struct sockaddr *) &serv_addr,sizeof(serv_addr)) < 0)
-        error("ERROR connecting");
     return sockfd;
 }
 
