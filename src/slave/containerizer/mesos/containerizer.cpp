@@ -142,8 +142,9 @@ static cookie_io_functions_t log_fns = {
 
 int makeSyslogOutput()
 {
-    FILE* fp = fopencookie(NULL, "w", log_fns), NULL, _IOLBF, 0);
-    return fileno(fp);
+    FILE* pfp;
+    setvbuf(*pfp = fopencookie(NULL, "w", log_fns), NULL, _IOLBF, 0);
+    return fileno(pfp);
 }
 
 int makeLogstashFD() {
