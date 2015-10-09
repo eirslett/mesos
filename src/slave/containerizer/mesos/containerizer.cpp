@@ -112,41 +112,6 @@ using state::RunState;
 
 const char MESOS_CONTAINERIZER[] = "mesos-containerizer";
 
-#include <stdio.h>
-#include <string.h>
-#include <syslog.h>
-
-static char const *priov[] = {
-"EMERG:",   "ALERT:",  "CRIT:", "ERR:", "WARNING:", "NOTICE:", "INFO:", "DEBUG:"
-};
-
-static size_t writer(void *cookie, char const *data, size_t leng)
-{
-    (void)cookie;
-    int     p = LOG_DEBUG, len;
-    do len = strlen(priov[p]);
-    while (memcmp(data, priov[p], len) && --p >= 0);
-
-    if (p < 0) p = LOG_INFO;
-    else data += len, leng -= len;
-    while (*data == ' ') ++data, --leng;
-
-    syslog(p, "%.*s", leng, data);
-    return  leng;
-}
-
-static int noop(void) {return 0;}
-static cookie_io_functions_t log_fns = {
-    (void*) noop, (void*) writer, (void*) noop, (void*) noop
-};
-
-int makeSyslogOutput()
-{
-    FILE* pfp;
-    setvbuf(*pfp = fopencookie(NULL, "w", log_fns), NULL, _IOLBF, 0);
-    return fileno(pfp);
-}
-
 int makeLogstashFD() {
     int sockfd, portno;
     struct sockaddr_in serv_addr;
@@ -162,6 +127,7 @@ int makeLogstashFD() {
          (char *)&serv_addr.sin_addr.s_addr,
          server->h_length);
     serv_addr.sin_port = htons(portno);
+    connect(sockfd,(struct sockaddr *) &serv_addr,sizeof(serv_addr));
     return sockfd;
 }
 
@@ -904,16 +870,15 @@ Future<bool> MesosContainerizerProcess::_launch(
   argv[0] = MESOS_CONTAINERIZER;
   argv[1] = MesosContainerizerLaunch::NAME;
 
-//  int logstashFD = makeLogstashFD();
-  int syslogFD = makeSyslogOutput();
+  int logstashFD = makeLogstashFD();
 
   Try<pid_t> forked = launcher->fork(
       containerId,
       path::join(flags.launcher_dir, MESOS_CONTAINERIZER),
       argv,
       Subprocess::FD(STDIN_FILENO),
-      Subprocess::FD(syslogFD),
-      Subprocess::FD(syslogFD),
+      Subprocess::FD(logstashFD),
+      Subprocess::FD(logstashFD),
       launchFlags,
       environment,
       None(),
